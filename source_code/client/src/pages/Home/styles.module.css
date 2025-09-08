@@ -1,0 +1,118 @@
+.left {
+  width: 500px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.right {
+  flex-grow: 1;
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+  flex-direction: column;
+}
+
+.logo {
+  width: 500px;
+}
+
+.logoButtonContainer {
+  margin-top: 10px;
+  position: relative;
+  top: -50px; /* Move 50 pixels up total (10 + 20 + 20) */
+}
+
+.paper_hand {
+  width: 500px;
+  rotate: 20deg;
+  position: absolute;
+  top: 0;
+  right: -50px;
+  z-index: -1;
+}
+
+.rock_hand {
+  position: absolute;
+  bottom: -60px;
+  left: -175px;
+  width: 400px;
+  rotate: -50deg;
+  z-index: -1;
+}
+
+.btn_container {
+  display: flex;
+  flex-direction: column;
+  margin: 30px 40px;
+}
+
+.playerChainId {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: monospace;
+  z-index: 100;
+}
+
+.authButtons {
+  position: fixed; /* Changed to fixed positioning to move outside of container */
+  top: 20px;
+  right: 20px;
+  display: flex;
+  gap: 10px;
+  z-index: 1000; /* Increased z-index to ensure it's always on top */
+}
+
+.userControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.welcomeMessage {
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Small button styles for login/register */
+.smallButtonWrapper {
+  position: relative;
+  outline: none;
+  border: none;
+  width: 167px; /* 250px / 1.5 = 167px */
+  height: 53px; /* 80px / 1.5 = 53px */
+  border-radius: 17px; /* 25px / 1.5 = 17px */
+  background: transparent;
+  font-size: 13px; /* 20px / 1.5 = 13px */
+  font-family: inherit;
+  text-transform: capitalize;
+  color: white;
+  cursor: pointer;
+  margin-bottom: 7px; /* 10px / 1.5 = 7px */
+}
+
+.smallButtonWrapper:hover {
+  scale: 1.02;
+}
+
+.smallButtonBackground {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
+}
