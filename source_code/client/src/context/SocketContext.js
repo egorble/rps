@@ -123,6 +123,9 @@ const LineraContextProvider = ({ children }) => {
 
     console.log("Converted room:", convertedRoom);
     
+    // Check if both players have made their choices
+    const bothPlayersChosen = roomState.player1Choice && roomState.player2Choice;
+    
     // Set up players
     if (roomState.player1) {
       // Preserve existing score if available, otherwise use gameResult
@@ -131,7 +134,7 @@ const LineraContextProvider = ({ children }) => {
       
       convertedRoom.players[roomState.player1] = {
         option: roomState.player1Choice ? roomState.player1Choice.toLowerCase() : "",
-        optionLock: !!roomState.player1Choice,
+        optionLock: bothPlayersChosen, // Only lock when both players have chosen
         score: score
       };
       
@@ -148,7 +151,7 @@ const LineraContextProvider = ({ children }) => {
       
       convertedRoom.players[roomState.player2] = {
         option: roomState.player2Choice ? roomState.player2Choice.toLowerCase() : "",
-        optionLock: !!roomState.player2Choice,
+        optionLock: bothPlayersChosen, // Only lock when both players have chosen
         score: score
       };
       

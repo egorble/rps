@@ -42,4 +42,15 @@ io.on("connection", (socket) => {
 });
 
 const port = process.env.PORT || 3003;
-httpServer.listen(port, () => console.log(`Listening on port ${port}`));
+httpServer.listen(port, '0.0.0.0', () => {
+  console.log(`🚀 Server listening on http://0.0.0.0:${port}`);
+  console.log(`🌍 Accessible externally at http://62.72.35.202:${port}`);
+  console.log(`🔧 Health check endpoint: http://62.72.35.202:${port}/api/health`);
+}).on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${port} is already in use. Please stop the existing process or use a different port.`);
+  } else {
+    console.error(`❌ Server failed to start: ${err.message}`);
+  }
+  process.exit(1);
+});

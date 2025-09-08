@@ -1,5 +1,5 @@
 import { useState, useContext, useEffect } from "react";
-import { LineraContext } from "../../context/SocketContext";
+import { LineraContext } from "../../context/LineraContext";
 import rock_right_hand_img from "../../images/rock_right_hand.png";
 import paper_right_hand_img from "../../images/paper_right_hand.png";
 import scissors_right_hand_img from "../../images/scissors_right_hand.png";
@@ -7,43 +7,45 @@ import styles from "./styles.module.css";
 
 function Controls() {
   const [option, setOption] = useState("");
-  const { socket, room, submitChoice } = useContext(LineraContext);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { room, player_1, submitChoice } = useContext(LineraContext);
+
+  // Get current player's state
+  const currentPlayer = room.players && room.players[player_1];
+  const isLocked = currentPlayer ? currentPlayer.optionLock : false;
+  const currentChoice = currentPlayer ? currentPlayer.option : "";
 
   useEffect(() => {
-    const playerId = socket.id;
-    if (room.players && room.players[playerId]) {
-      setOption(room.players[playerId].option);
+    // Update local option state when room state changes
+    if (currentChoice) {
+      setOption(currentChoice);
     } else {
       setOption("");
     }
-  }, [room, socket.id]);
-
-  // Check if both players have made their choices
-  const areBothPlayersLocked = () => {
-    if (!room.players) return false;
-    
-    const playerIds = Object.keys(room.players);
-    if (playerIds.length < 2) return false;
-    
-    return playerIds.every(playerId => room.players[playerId].optionLock);
-  };
+  }, [currentChoice]);
 
   const handleChange = async ({ currentTarget: input }) => {
-    setOption(input.value);
-    
-    // Use Linera submitChoice instead of socket.emit
+    if (isLocked || isSubmitting) return;
+
+    setIsSubmitting(true);
+    const choice = input.value;
+    setOption(choice);
+
     try {
-      await submitChoice(input.value);
-      console.log('Choice submitted:', input.value);
+      // Submit choice to Linera
+      await submitChoice(choice);
+      console.log("Choice submitted successfully:", choice);
     } catch (error) {
-      console.error('Failed to submit choice:', error);
-      // Reset option on error
+      console.error("Failed to submit choice:", error);
+      alert(`Failed to submit choice: ${error.message}`);
+      // Reset on error
       setOption("");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // Determine if controls should be disabled
-  const isDisabled = areBothPlayersLocked();
+  const isDisabled = isLocked || isSubmitting || !currentPlayer;
 
   return (
     <div className={styles.container}>
@@ -75,7 +77,7 @@ function Controls() {
       >
         <img
           src={paper_right_hand_img}
-          alt="rock_hand"
+          alt="paper_hand"
           className={styles.option_btn_img}
         />
       </button>
@@ -91,10 +93,32 @@ function Controls() {
       >
         <img
           src={scissors_right_hand_img}
-          alt="rock_hand"
+          alt="scissors_hand"
           className={styles.option_btn_img}
         />
       </button>
+      
+      {isSubmitting && (
+        <div style={{ 
+          color: "#fff", 
+          textAlign: "center", 
+          marginTop: "10px",
+          fontSize: "14px"
+        }}>
+          Submitting choice to blockchain...
+        </div>
+      )}
+      
+      {isLocked && !isSubmitting && (
+        <div style={{ 
+          color: "#4ec9b0", 
+          textAlign: "center", 
+          marginTop: "10px",
+          fontSize: "14px"
+        }}>
+          Choice submitted: {option.toUpperCase()}
+        </div>
+      )}
     </div>
   );
 }
