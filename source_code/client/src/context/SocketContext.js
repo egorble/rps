@@ -15,6 +15,7 @@ const LineraContextProvider = ({ children }) => {
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [animatedRounds, setAnimatedRounds] = useState(new Set()); // Track animated rounds
   const [animationLock, setAnimationLock] = useState(false); // Prevent updates during animations
+  const [isAnimating, setIsAnimating] = useState(false); // Track if animation is in progress
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -30,6 +31,19 @@ const LineraContextProvider = ({ children }) => {
     // Chain will be created when user registers
     setIsInitialized(true);
   }, []); // Empty dependency array to run only once
+
+  // Effect to handle animation state changes
+  useEffect(() => {
+    if (lineraClient) {
+      if (isAnimating) {
+        console.log("Animation started, pausing WebSocket monitoring");
+        lineraClient.pauseMonitoring();
+      } else {
+        console.log("Animation finished, resuming WebSocket monitoring");
+        lineraClient.resumeMonitoring();
+      }
+    }
+  }, [isAnimating, lineraClient]);
 
   // Create room function
   const createRoom = async (type, roomId = null) => {
@@ -278,7 +292,9 @@ const LineraContextProvider = ({ children }) => {
         playerChainId,
         setPlayerChainId, // Expose setPlayerChainId to allow setting it from outside
         animationLock, // Expose animation lock state
-        setAnimationLock // Expose animation lock setter
+        setAnimationLock, // Expose animation lock setter
+        isAnimating, // Expose animation state
+        setIsAnimating // Expose animation state setter
       }}
     >
       {children}

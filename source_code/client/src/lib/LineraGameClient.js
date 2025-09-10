@@ -1,9 +1,9 @@
 // Linera GraphQL client for Rock Paper Scissors game
 // Constants as specified
 const BASE_URL = "http://62.72.35.202:8080";
-const APP_ID = "fc34d424ce0af74314a1003b09a29b6ba5990e50ac37f6ae3b84b85b1f7a3f64";
-const READ_CHAIN_ID = "9457a192e095a93b01342102a43c251fc551026167440ba238a881a8dc153a20";
-const OWNER_ACCOUNT = "0x7720f6ef4315f4b68a6d0247922c00345ee92a0f1d8a791ca8e4849c7dbb1a0d";
+const APP_ID = "39f4c13960411fb384018674e20706bb81d728905937fb3d6d61149e94d9de85";
+const READ_CHAIN_ID = "349cb0da052a21eb26879aae2893fde1a1d1c14bca3894b09d1bdc6f60ec8bc4";
+const OWNER_ACCOUNT = "0xd25f8454ffd3398bbceb93ad3f75582cc022bc6233e0627fa9a87ca3e27ab5b7";
 
 // Helper function to generate UUID using Math.random()
 function generateUUID() {
@@ -26,6 +26,8 @@ class LineraGameClient {
         this.leaderboardCallback = null; // Callback for leaderboard updates
         this.reconnectTimeout = null;
         this.isConnecting = false;
+        this.isPaused = false; // Track if WebSocket monitoring is paused
+        this.pendingNotifications = []; // Queue for notifications during pause
     }
 
     // Initialize player chain when entering the game
@@ -386,13 +388,13 @@ class LineraGameClient {
         this.isConnecting = true;
         this.wsConnectionPromise = new Promise((resolve, reject) => {
             try {
-                console.log('рџ”Њ Establishing WebSocket connection with graphql-transport-ws protocol...');
+                console.log('🔌 Establishing WebSocket connection with graphql-transport-ws protocol...');
                 
                 const wsUrl = 'ws://62.72.35.202:8080/ws';
                 this.ws = new WebSocket(wsUrl, 'graphql-transport-ws');
                 
                 const connectionTimeout = setTimeout(() => {
-                    console.warn('вЏ° WebSocket connection timeout (5s)');
+                    console.warn('⏰ WebSocket connection timeout (5s)');
                     if (this.ws) {
                         this.ws.close();
                     }
@@ -402,7 +404,7 @@ class LineraGameClient {
                 
                 this.ws.onopen = () => {
                     clearTimeout(connectionTimeout);
-                    console.log('вњ… WebSocket connected successfully');
+                    console.log('✅ WebSocket connected successfully');
                     
                     // Send connection_init message
                     const initMessage = {
@@ -410,7 +412,7 @@ class LineraGameClient {
                         "payload": {}
                     };
                     this.ws.send(JSON.stringify(initMessage));
-                    console.log('рџ“¤ Sent connection_init');
+                    console.log('📤 Sent connection_init');
                 };
                 
                 this.ws.onmessage = (event) => {
@@ -418,20 +420,20 @@ class LineraGameClient {
                         const message = JSON.parse(event.data);
                         this.handleWebSocketMessage(message, resolve, reject);
                     } catch (error) {
-                        console.error('вќЊ Error parsing WebSocket message:', error);
+                        console.error('❌ Error parsing WebSocket message:', error);
                     }
                 };
                 
                 this.ws.onerror = (error) => {
                     clearTimeout(connectionTimeout);
-                    console.error('вќЊ WebSocket error:', error.message || 'Connection failed');
+                    console.error('❌ WebSocket error:', error.message || 'Connection failed');
                     this.isConnecting = false;
                     reject(error);
                 };
                 
                 this.ws.onclose = (event) => {
                     clearTimeout(connectionTimeout);
-                    console.log(`рџ”Њ WebSocket closed (Code: ${event.code})`);
+                    console.log(`🔌 WebSocket closed (Code: ${event.code})`);
                     this.isConnecting = false;
                     this.ws = null;
                     this.wsConnectionPromise = null;
@@ -443,7 +445,7 @@ class LineraGameClient {
                 };
                 
             } catch (error) {
-                console.error('вќЊ WebSocket creation failed:', error);
+                console.error('❌ WebSocket creation failed:', error);
                 this.isConnecting = false;
                 reject(error);
             }
@@ -453,11 +455,11 @@ class LineraGameClient {
     }
 
     handleWebSocketMessage(message, resolve, reject) {
-        console.log('рџ“Ё WebSocket message:', message.type);
+        console.log('📩 WebSocket message:', message.type);
         
         switch (message.type) {
             case 'connection_ack':
-                console.log('вњ… Connection acknowledged by server');
+                console.log('✅ Connection acknowledged by server');
                 this.subscribeToChainNotifications();
                 this.isConnecting = false;
                 if (resolve) resolve();
@@ -465,29 +467,29 @@ class LineraGameClient {
                 
             case 'next':
                 if (message.id === 'chain_notifications') {
-                    console.log('рџ”” Blockchain notification received!');
+                    console.log('🔔 Blockchain notification received!');
                     this.handleBlockchainNotification(message.payload);
                 }
                 break;
                 
             case 'error':
-                console.error('вќЊ Subscription error:', JSON.stringify(message.payload));
+                console.error('❌ Subscription error:', JSON.stringify(message.payload));
                 this.isConnecting = false;
                 if (reject) reject(new Error(JSON.stringify(message.payload)));
                 break;
                 
             case 'complete':
-                console.log('вњ… Subscription completed for ID:', message.id);
+                console.log('✅ Subscription completed for ID:', message.id);
                 break;
                 
             case 'ping':
                 const pongMessage = { type: 'pong' };
                 this.ws.send(JSON.stringify(pongMessage));
-                console.log('рџЏ“ Sent pong response');
+                console.log('🏓 Sent pong response');
                 break;
                 
             default:
-                console.log(`рџ¤” Unknown message type: ${message.type}`);
+                console.log(`🤔 Unknown message type: ${message.type}`);
         }
     }
 
@@ -501,11 +503,19 @@ class LineraGameClient {
         };
         
         this.ws.send(JSON.stringify(subscriptionMessage));
-        console.log('рџ“Ў Subscribed to blockchain notifications on chain:', READ_CHAIN_ID);
+        console.log('📡 Subscribed to blockchain notifications on chain:', READ_CHAIN_ID);
     }
 
     async handleBlockchainNotification(payload) {
-        console.log('рџ”” Blockchain event - updating all monitored rooms');
+        console.log('🔔 Blockchain event - updating all monitored rooms');
+        
+        // If monitoring is paused, queue the notification
+        if (this.isPaused) {
+            console.log('⏸️ Monitoring paused, queuing notification');
+            this.pendingNotifications.push(payload);
+            return;
+        }
+        
         // When we receive a blockchain notification, update all monitored rooms
         for (const [roomId, callback] of this.roomCallbacks) {
             try {
@@ -527,16 +537,37 @@ class LineraGameClient {
         }
     }
 
+    // Pause WebSocket monitoring during animations
+    pauseMonitoring() {
+        console.log('⏸️ Pausing WebSocket monitoring');
+        this.isPaused = true;
+    }
+
+    // Resume WebSocket monitoring after animations
+    async resumeMonitoring() {
+        console.log('▶️ Resuming WebSocket monitoring');
+        this.isPaused = false;
+        
+        // Process any pending notifications that arrived during pause
+        if (this.pendingNotifications.length > 0) {
+            console.log(`🔁 Processing ${this.pendingNotifications.length} queued notifications`);
+            while (this.pendingNotifications.length > 0) {
+                const payload = this.pendingNotifications.shift();
+                await this.handleBlockchainNotification(payload);
+            }
+        }
+    }
+
     scheduleReconnect() {
         if (this.reconnectTimeout) {
             clearTimeout(this.reconnectTimeout);
         }
         
-        console.log('рџ”„ Attempting to reconnect WebSocket in 3 seconds...');
+        console.log('🔄 Attempting to reconnect WebSocket in 3 seconds...');
         this.reconnectTimeout = setTimeout(() => {
             if (this.roomCallbacks.size > 0) {
                 this.ensureWebSocketConnection().catch(() => {
-                    console.warn('вљ пёЏ Reconnection failed, will retry on next request');
+                    console.warn('⚠️ Reconnection failed, will retry on next request');
                 });
             }
         }, 3000);
@@ -544,38 +575,38 @@ class LineraGameClient {
 
     // Simple room monitoring - no complex cleanup management
     async startRoomMonitoring(roomId, callback) {
-        console.log(`рџЋЇ Starting monitoring for room: ${roomId}`);
+        console.log(`🎯 Starting monitoring for room: ${roomId}`);
         
         // Simply store the callback
         this.roomCallbacks.set(roomId, callback);
-        console.log(`рџ“‹ Active room monitoring count: ${this.roomCallbacks.size}`);
+        console.log(`📋 Active room monitoring count: ${this.roomCallbacks.size}`);
         
         try {
             // Ensure WebSocket connection
             await this.ensureWebSocketConnection();
-            console.log(`вњ… WebSocket ready for room ${roomId}`);
+            console.log(`✅ WebSocket ready for room ${roomId}`);
             
             // Get initial room state
             const roomState = await this.getRoomState(roomId);
             callback(null, roomState);
             
         } catch (error) {
-            console.error(`вќЊ Failed to start monitoring for room ${roomId}:`, error);
+            console.error(`❌ Failed to start monitoring for room ${roomId}:`, error);
             callback(error, null);
         }
     }
 
     // Simple room monitoring stop
     stopRoomMonitoring(roomId) {
-        console.log(`вЏ№пёЏ Stopping monitoring for room: ${roomId}`);
+        console.log(`⏹️ Stopping monitoring for room: ${roomId}`);
         
         const wasMonitoring = this.roomCallbacks.has(roomId);
         this.roomCallbacks.delete(roomId);
         
         if (wasMonitoring) {
-            console.log(`рџ“‹ Active room monitoring count: ${this.roomCallbacks.size}`);
+            console.log(`📋 Active room monitoring count: ${this.roomCallbacks.size}`);
         } else {
-            console.log(`вљ пёЏ Room ${roomId} was not being monitored`);
+            console.log(`⚠️ Room ${roomId} was not being monitored`);
         }
         
         // Keep WebSocket open as long as there might be other rooms
@@ -584,7 +615,7 @@ class LineraGameClient {
 
     // Disconnect WebSocket (for app shutdown)
     disconnectWebSocket() {
-        console.log('рџ”Њ Disconnecting WebSocket');
+        console.log('🔌 Disconnecting WebSocket');
         
         this.roomCallbacks.clear();
         
@@ -654,7 +685,7 @@ class LineraGameClient {
         try {
             const mutation = `
                 mutation {
-                    setupLeaderboard(leaderboardChainId: "9457a192e095a93b01342102a43c251fc551026167440ba238a881a8dc153a20")
+                    setupLeaderboard(leaderboardChainId: "349cb0da052a21eb26879aae2893fde1a1d1c14bca3894b09d1bdc6f60ec8bc4")
                 }
             `;
 
@@ -677,7 +708,7 @@ class LineraGameClient {
 
     // Start leaderboard monitoring
     async startLeaderboardMonitoring(callback) {
-        console.log('рџЋЇ Starting leaderboard monitoring');
+        console.log('🎯 Starting leaderboard monitoring');
         
         // Store the callback
         this.leaderboardCallback = callback;
@@ -685,16 +716,16 @@ class LineraGameClient {
         try {
             // Ensure WebSocket connection
             await this.ensureWebSocketConnection();
-            console.log('вњ… WebSocket ready for leaderboard monitoring');
+            console.log('✅ WebSocket ready for leaderboard monitoring');
         } catch (error) {
-            console.error('вќЊ Failed to start leaderboard monitoring:', error);
+            console.error('❌ Failed to start leaderboard monitoring:', error);
             throw error;
         }
     }
 
     // Stop leaderboard monitoring
     stopLeaderboardMonitoring() {
-        console.log('вЏ№пёЏ Stopping leaderboard monitoring');
+        console.log('⏹️ Stopping leaderboard monitoring');
         this.leaderboardCallback = null;
     }
 

@@ -1,27 +1,46 @@
-import { useState, useEffect, useContext, useRef } from "react";
+import { useState, useEffect, useContext, useRef, useMemo, useCallback } from "react";
 import { LineraContext } from "../../context/SocketContext";
 import * as XLSX from "xlsx";
 import styles from "./styles.module.css";
 
 const LeaderboardModal = ({ isOpen, onClose }) => {
   const { lineraClient, startLeaderboardMonitoring, stopLeaderboardMonitoring } = useContext(LineraContext);
-  const [leaderboard, setLeaderboard] = useState([]);
+  const [leaderboardMap, setLeaderboardMap] = useState(new Map()); // Use Map for efficient updates
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const isMounted = useRef(true);
+  const lastFetchTime = useRef(0);
+  const fetchTimeoutRef = useRef(null);
+
+  // Convert map to array for rendering
+  const leaderboardArray = useMemo(() => {
+    return Array.from(leaderboardMap.values());
+  }, [leaderboardMap]);
+
+  // Memoize sorted leaderboard data
+  const sortedLeaderboard = useMemo(() => {
+    return [...leaderboardArray].sort((a, b) => 
+      b.wins - a.wins || a.losses - b.losses
+    );
+  }, [leaderboardArray]);
 
   // Function to fetch leaderboard data
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = useCallback(async () => {
     console.log("fetchLeaderboard called");
-    console.log("lineraClient available:", !!lineraClient);
-    console.log("isMounted.current:", isMounted.current);
     
     if (!lineraClient) {
       console.log("Skipping fetch - lineraClient is false");
       return;
     }
     
-    // Don't check isMounted here initially as it might not be set yet
+    // Rate limiting - minimum 2 seconds between fetches
+    const now = Date.now();
+    if (now - lastFetchTime.current < 2000) {
+      console.log("Rate limited - skipping fetch");
+      return;
+    }
+    
+    lastFetchTime.current = now;
     console.log("Fetching leaderboard data...");
     setIsLoading(true);
     setError("");
@@ -53,8 +72,39 @@ const LeaderboardModal = ({ isOpen, onClose }) => {
       
       // Check if still mounted before updating state
       if (isMounted.current) {
-        setLeaderboard(response.data.globalLeaderboard || []);
-        console.log("Leaderboard data set:", response.data.globalLeaderboard || []);
+        // Update the leaderboard map with new data, only changing what's necessary
+        setLeaderboardMap(prevMap => {
+          const newMap = new Map(prevMap);
+          const newData = response.data.globalLeaderboard || [];
+          
+          // Create a set of current chainIds for quick lookup
+          const currentChainIds = new Set(newData.map(entry => entry.chainId));
+          
+          // Remove entries that no longer exist
+          for (const chainId of newMap.keys()) {
+            if (!currentChainIds.has(chainId)) {
+              newMap.delete(chainId);
+            }
+          }
+          
+          // Update or add entries
+          for (const entry of newData) {
+            const existingEntry = newMap.get(entry.chainId);
+            
+            // Only update if the entry has actually changed
+            if (!existingEntry ||
+                existingEntry.totalGames !== entry.totalGames ||
+                existingEntry.wins !== entry.wins ||
+                existingEntry.losses !== entry.losses ||
+                existingEntry.playerName !== entry.playerName) {
+              newMap.set(entry.chainId, entry);
+            }
+          }
+          
+          return newMap;
+        });
+        
+        console.log("Leaderboard data updated");
       }
     } catch (err) {
       console.error("Failed to fetch leaderboard:", err);
@@ -68,16 +118,33 @@ const LeaderboardModal = ({ isOpen, onClose }) => {
         setIsLoading(false);
       }
     }
-  };
+  }, [lineraClient]);
+
+  // Debounced update function
+  const debouncedUpdate = useCallback(() => {
+    const now = Date.now();
+    const timeSinceLastFetch = now - lastFetchTime.current;
+    
+    // Minimum 2 seconds between updates
+    if (timeSinceLastFetch < 2000) {
+      // Clear existing timeout
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+      
+      // Schedule update for later
+      fetchTimeoutRef.current = setTimeout(() => {
+        fetchLeaderboard();
+      }, 2000 - timeSinceLastFetch);
+    } else {
+      // Update immediately
+      fetchLeaderboard();
+    }
+  }, [fetchLeaderboard]);
 
   // Export leaderboard to XLSX format
-  const exportToSheets = () => {
-    if (leaderboard.length === 0) return;
-    
-    // Prepare data for export
-    const sortedLeaderboard = [...leaderboard].sort((a, b) => 
-      b.wins - a.wins || a.losses - b.losses
-    );
+  const exportToSheets = useCallback(() => {
+    if (sortedLeaderboard.length === 0) return;
     
     const exportData = sortedLeaderboard.map((player, index) => {
       const winRate = player.totalGames > 0 
@@ -104,19 +171,20 @@ const LeaderboardModal = ({ isOpen, onClose }) => {
     
     // Export to file
     XLSX.writeFile(workbook, "leaderboard.xlsx");
-  };
+  }, [sortedLeaderboard]);
 
   // Fetch leaderboard when modal opens
   useEffect(() => {
     console.log("Leaderboard modal isOpen changed:", isOpen);
-    console.log("lineraClient in useEffect:", !!lineraClient);
     if (isOpen) {
       console.log("Modal is open, calling fetchLeaderboard");
       fetchLeaderboard();
     } else {
-      console.log("Modal is closed, not fetching leaderboard");
+      console.log("Modal is closed, clearing leaderboard");
+      // Clear the leaderboard when modal closes
+      setLeaderboardMap(new Map());
     }
-  }, [isOpen, lineraClient]);
+  }, [isOpen, fetchLeaderboard]);
 
   // Setup leaderboard monitoring for real-time updates
   useEffect(() => {
@@ -133,8 +201,8 @@ const LeaderboardModal = ({ isOpen, onClose }) => {
             // When a blockchain notification is received, refresh the leaderboard
             // Only update if we're not currently loading to prevent conflicts
             if (isMounted.current && !isLoading) {
-              console.log("Blockchain notification received, refreshing leaderboard...");
-              fetchLeaderboard();
+              console.log("Blockchain notification received, scheduling leaderboard update...");
+              debouncedUpdate();
             }
           });
         } catch (err) {
@@ -155,8 +223,13 @@ const LeaderboardModal = ({ isOpen, onClose }) => {
       if (isOpen) {
         stopLeaderboardMonitoring();
       }
+      
+      // Clear any pending updates
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
     };
-  }, [isOpen, lineraClient, isLoading]);
+  }, [isOpen, lineraClient, isLoading, debouncedUpdate]);
 
   if (!isOpen) return null;
 
@@ -170,7 +243,7 @@ const LeaderboardModal = ({ isOpen, onClose }) => {
           <button 
             className={styles.exportButton} 
             onClick={exportToSheets}
-            disabled={leaderboard.length === 0 || isLoading}
+            disabled={sortedLeaderboard.length === 0 || isLoading}
           >
             Export to Excel
           </button>
@@ -178,9 +251,9 @@ const LeaderboardModal = ({ isOpen, onClose }) => {
         
         {error && <div className={styles.error}>{error}</div>}
         
-        {isLoading ? (
+        {isLoading && leaderboardArray.length === 0 ? (
           <div className={styles.loading}>Loading leaderboard...</div>
-        ) : leaderboard.length === 0 ? (
+        ) : sortedLeaderboard.length === 0 ? (
           <div className={styles.loading}>No leaderboard data available</div>
         ) : (
           <div className={styles.leaderboardContainer}>
@@ -197,27 +270,25 @@ const LeaderboardModal = ({ isOpen, onClose }) => {
                 </tr>
               </thead>
               <tbody>
-                {leaderboard
-                  .sort((a, b) => b.wins - a.wins || a.losses - b.losses)
-                  .map((player, index) => {
-                    const winRate = player.totalGames > 0 
-                      ? ((player.wins / player.totalGames) * 100).toFixed(1) 
-                      : "0.0";
-                    
-                    return (
-                      <tr key={player.chainId}>
-                        <td>{index + 1}</td>
-                        <td>{player.playerName || 'Unknown Player'}</td>
-                        <td className={styles.chainId}>
-                          {player.chainId.substring(0, 8)}...
-                        </td>
-                        <td>{player.totalGames}</td>
-                        <td>{player.wins}</td>
-                        <td>{player.losses}</td>
-                        <td>{winRate}%</td>
-                      </tr>
-                    );
-                  })}
+                {sortedLeaderboard.map((player, index) => {
+                  const winRate = player.totalGames > 0 
+                    ? ((player.wins / player.totalGames) * 100).toFixed(1) 
+                    : "0.0";
+                  
+                  return (
+                    <tr key={player.chainId}>
+                      <td>{index + 1}</td>
+                      <td>{player.playerName || 'Unknown Player'}</td>
+                      <td className={styles.chainId}>
+                        {player.chainId.substring(0, 8)}...
+                      </td>
+                      <td>{player.totalGames}</td>
+                      <td>{player.wins}</td>
+                      <td>{player.losses}</td>
+                      <td>{winRate}%</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
