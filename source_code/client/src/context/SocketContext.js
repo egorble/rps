@@ -14,6 +14,7 @@ const LineraContextProvider = ({ children }) => {
   const [currentRoomId, setCurrentRoomId] = useState(null);
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [animatedRounds, setAnimatedRounds] = useState(new Set()); // Track animated rounds
+  const [animationLock, setAnimationLock] = useState(false); // Prevent updates during animations
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -106,6 +107,12 @@ const LineraContextProvider = ({ children }) => {
 
   // Update room state and handle game logic
   const updateRoomState = (roomState) => {
+    // Skip updates if animation is in progress
+    if (animationLock) {
+      console.log("Animation in progress, skipping room state update");
+      return;
+    }
+    
     console.log("Room state updated:", roomState);
     
     // Convert Linera room state to Socket.IO-like format for compatibility
@@ -269,7 +276,9 @@ const LineraContextProvider = ({ children }) => {
         startLeaderboardMonitoring, // Add leaderboard monitoring functions
         stopLeaderboardMonitoring,  // Add leaderboard monitoring functions
         playerChainId,
-        setPlayerChainId // Expose setPlayerChainId to allow setting it from outside
+        setPlayerChainId, // Expose setPlayerChainId to allow setting it from outside
+        animationLock, // Expose animation lock state
+        setAnimationLock // Expose animation lock setter
       }}
     >
       {children}

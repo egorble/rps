@@ -1,0 +1,22 @@
+.container {
+  padding: 20px;
+  border: 1px solid #ccc;
+  margin: 10px;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+.title {
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.status {
+  font-weight: bold;
+  margin: 10px 0;
+}
+
+.userCount {
+  color: #666;
+  font-style: italic;
+}

@@ -1,5 +1,6 @@
 import { useContext, useState, useEffect } from "react";
 import { LineraContext } from "../../context/SocketContext";
+import { supabase } from "../../lib/supabaseClient";
 import Button from "../../components/Button";
 import RoomModal from "../../components/RoomModal";
 import LeaderboardModal from "../../components/LeaderboardModal";
@@ -66,27 +67,28 @@ const Home = () => {
     }
   };
 
-  // Function to save chain ID to database
-  const saveChainIdToDatabase = async (discordUsername, chainId) => {
+  // Function to save chain ID to Supabase
+  const saveChainIdToDatabase = async (userId, chainId) => {
     try {
-      const response = await fetch(`http://62.72.35.202:3003/api/auth/user/${discordUsername}/chain`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ chainId }),
-      });
+      console.log("Saving chain ID to database:", { userId, chainId });
       
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to save chain ID");
+      // Update user profile with chain ID
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .update({ chain_id: chainId })
+        .eq('id', userId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error saving chain ID:", error);
+        throw new Error(error.message || "Failed to save chain ID");
       }
       
-      console.log("Chain ID saved to database");
+      console.log("Chain ID saved to Supabase user profile:", data);
       return true;
     } catch (error) {
-      console.error("Failed to save chain ID to database:", error);
+      console.error("Failed to save chain ID to Supabase:", error);
       return false;
     }
   };
@@ -116,7 +118,7 @@ const Home = () => {
   };
 
   // Function to handle logout
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setCurrentUser(null);
     localStorage.removeItem('rockPaperScissorsUser');
     console.log("User logged out");
@@ -140,21 +142,25 @@ const Home = () => {
         console.log('New chain created:', chainId);
         
         if (chainId) {
-          // Save chain ID to database
-          await saveChainIdToDatabase(userData.discordUsername, chainId);
+          // Save chain ID to Supabase user profile
+          const saveResult = await saveChainIdToDatabase(userData.userId, chainId);
           
-          // Set player name
-          await setPlayerNameMutation(userData.playerName);
-          
-          // Update user data with chain ID
-          const updatedUserData = { ...userData, chainId };
-          setCurrentUser(updatedUserData);
-          
-          // Save user data to localStorage for persistence
-          localStorage.setItem('rockPaperScissorsUser', JSON.stringify(updatedUserData));
-          
-          // Set chain ID in context
-          setPlayerChainId(chainId);
+          if (saveResult) {
+            // Set player name
+            await setPlayerNameMutation(userData.playerName);
+            
+            // Update user data with chain ID
+            const updatedUserData = { ...userData, chainId };
+            setCurrentUser(updatedUserData);
+            
+            // Save user data to localStorage for persistence
+            localStorage.setItem('rockPaperScissorsUser', JSON.stringify(updatedUserData));
+            
+            // Set chain ID in context
+            setPlayerChainId(chainId);
+          } else {
+            console.error("Failed to save chain ID to database");
+          }
         } else {
           console.error("Failed to create chain for user");
         }

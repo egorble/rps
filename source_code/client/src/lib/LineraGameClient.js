@@ -1,9 +1,9 @@
 // Linera GraphQL client for Rock Paper Scissors game
 // Constants as specified
 const BASE_URL = "http://62.72.35.202:8080";
-const APP_ID = "210ba63c8df8de21f2f713d7aeacf1ec8b972c7811ab967c80c29563e9185a43";
-const READ_CHAIN_ID = "7f92ff5ea24ec3aa06cd695b35b5e020a72ae7b1ab5acf5d65bbcbb26b4ef722";
-const OWNER_ACCOUNT = "0xf7fc2743d8bafa1139dab8e769cba3fdbdbdbd9652fb05500b9aa0a2289ff34d";
+const APP_ID = "fc34d424ce0af74314a1003b09a29b6ba5990e50ac37f6ae3b84b85b1f7a3f64";
+const READ_CHAIN_ID = "9457a192e095a93b01342102a43c251fc551026167440ba238a881a8dc153a20";
+const OWNER_ACCOUNT = "0x7720f6ef4315f4b68a6d0247922c00345ee92a0f1d8a791ca8e4849c7dbb1a0d";
 
 // Helper function to generate UUID using Math.random()
 function generateUUID() {
@@ -654,7 +654,7 @@ class LineraGameClient {
         try {
             const mutation = `
                 mutation {
-                    setupLeaderboard(leaderboardChainId: "7f92ff5ea24ec3aa06cd695b35b5e020a72ae7b1ab5acf5d65bbcbb26b4ef722")
+                    setupLeaderboard(leaderboardChainId: "9457a192e095a93b01342102a43c251fc551026167440ba238a881a8dc153a20")
                 }
             `;
 
