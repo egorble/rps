@@ -7,7 +7,7 @@ import styles from "./styles.module.css";
 
 function Controls() {
   const [option, setOption] = useState("");
-  const { socket, room, submitChoice } = useContext(LineraContext);
+  const { socket, room, submitChoice, animationLock } = useContext(LineraContext);
 
   useEffect(() => {
     const playerId = socket.id;
@@ -18,17 +18,19 @@ function Controls() {
     }
   }, [room, socket.id]);
 
-  // Check if both players have made their choices
-  const areBothPlayersLocked = () => {
+  // Check if player has already made a choice
+  const hasPlayerChosen = () => {
+    const playerId = socket.id;
     if (!room.players) return false;
-    
-    const playerIds = Object.keys(room.players);
-    if (playerIds.length < 2) return false;
-    
-    return playerIds.every(playerId => room.players[playerId].optionLock);
+    return room.players[playerId] && room.players[playerId].optionLock;
   };
 
   const handleChange = async ({ currentTarget: input }) => {
+    // Prevent changing choice if already locked
+    if (hasPlayerChosen()) {
+      return;
+    }
+    
     setOption(input.value);
     
     // Use Linera submitChoice instead of socket.emit
@@ -43,7 +45,7 @@ function Controls() {
   };
 
   // Determine if controls should be disabled
-  const isDisabled = areBothPlayersLocked();
+  const isDisabled = hasPlayerChosen() || animationLock;
 
   return (
     <div className={styles.container}>

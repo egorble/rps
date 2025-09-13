@@ -23,7 +23,7 @@ const Room = () => {
   const [animationComplete, setAnimationComplete] = useState(false); // Track if animation is complete
   const animatedRoundsRef = useRef(animatedRounds); // Ref to access animated rounds in callbacks
   
-  const { socket, room, player_1, player_2, updateRoom, setRoom, playerChainId, navigate, lineraClient, setAnimationLock } = useContext(LineraContext);
+  const { socket, room, player_1, player_2, updateRoom, setRoom, playerChainId, navigate, lineraClient, setAnimationLock, setIsAnimating } = useContext(LineraContext);
   const location = useLocation();
 
   // Update ref when animatedRounds changes
@@ -100,6 +100,7 @@ const Room = () => {
         if (round.player1Choice && round.player2Choice) {
           // Set animation lock to prevent room updates during animation
           setAnimationLock(true);
+          setIsAnimating(true);
           
           // Mark this round as being animated
           setAnimatedRounds(prev => new Set(prev).add(round.roundNumber));
@@ -144,6 +145,7 @@ const Room = () => {
           
           // Release animation lock after animation completes
           setAnimationLock(false);
+          setIsAnimating(false);
           
           // Update current round
           setCurrentRound(round.roundNumber);
@@ -171,7 +173,7 @@ const Room = () => {
     };
     
     animateRoundHistory();
-  }, [room?.roundHistory, room?.players, playerChainId, room?.player1, room?.player2, room?.gameResult?.isFinished, setAnimationLock]);
+  }, [room?.roundHistory, room?.players, playerChainId, room?.player1, room?.player2, room?.gameResult?.isFinished, setAnimationLock, setIsAnimating]);
 
   const validateOptions = (value) => {
     switch (value) {

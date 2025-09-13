@@ -44,8 +44,9 @@ io.on("connection", (socket) => {
 const port = process.env.PORT || 3003;
 httpServer.listen(port, '0.0.0.0', () => {
   console.log(`🚀 Server listening on http://0.0.0.0:${port}`);
-  console.log(`🌍 Accessible externally at http://62.72.35.202:${port}`);
-  console.log(`🔧 Health check endpoint: http://62.72.35.202:${port}/api/health`);
+  console.log(`🌍 Accessible externally at https://rps-linera.xyz (via Nginx proxy)`);
+  console.log(`🔧 Health check endpoint: https://rps-linera.xyz/api/health (via Nginx proxy)`);
+  console.log(`🔧 Direct access (for debugging): http://62.72.35.202:${port}`);
 }).on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     console.error(`❌ Port ${port} is already in use. Please stop the existing process or use a different port.`);

@@ -119,9 +119,31 @@ const Home = () => {
 
   // Function to handle logout
   const handleLogout = async () => {
+    // Clear user data
     setCurrentUser(null);
     localStorage.removeItem('rockPaperScissorsUser');
-    console.log("User logged out");
+    
+    // Clear chain ID from context
+    setPlayerChainId("");
+    
+    // Clear chain ID from lineraClient if it exists
+    if (lineraClient) {
+      lineraClient.setPlayerChainId(null);
+      // Reset the client initialization state
+      lineraClient.isInitialized = false;
+      lineraClient.playerChainId = null;
+      
+      // Stop any active monitoring
+      lineraClient.stopLeaderboardMonitoring();
+      if (lineraClient.ws) {
+        lineraClient.disconnectWebSocket();
+      }
+    }
+    
+    // Clear any other potential chain-related storage
+    // (Adding this for completeness even if not currently used)
+    
+    console.log("User logged out and all chain data cleared");
   };
 
   // Function to handle authentication success

@@ -4,7 +4,7 @@
 const axios = require('axios');
 
 // Configuration
-const ENDPOINT = 'http://62.72.35.202:8080/chains/349cb0da052a21eb26879aae2893fde1a1d1c14bca3894b09d1bdc6f60ec8bc4/applications/39f4c13960411fb384018674e20706bb81d728905937fb3d6d61149e94d9de85';
+const ENDPOINT = 'https://rps-linera.xyz/graphql/chains/349cb0da052a21eb26879aae2893fde1a1d1c14bca3894b09d1bdc6f60ec8bc4/applications/39f4c13960411fb384018674e20706bb81d728905937fb3d6d61149e94d9de85';
 const TRANSACTIONS_PER_SECOND = 2;
 const INTERVAL = 500; // 1000ms = 1 second
 

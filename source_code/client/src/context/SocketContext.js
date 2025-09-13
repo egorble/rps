@@ -153,9 +153,12 @@ const LineraContextProvider = ({ children }) => {
       const existingScore = room.players && room.players[roomState.player1] ? room.players[roomState.player1].score : 0;
       const score = roomState.gameResult ? roomState.gameResult.player1Wins : existingScore;
       
+      // Check if player has made a choice (based on blockchain state)
+      const hasChosen = !!roomState.player1Choice;
+      
       convertedRoom.players[roomState.player1] = {
         option: roomState.player1Choice ? roomState.player1Choice.toLowerCase() : "",
-        optionLock: bothPlayersChosen, // Only lock when both players have chosen
+        optionLock: hasChosen, // Lock when player has made a choice
         score: score
       };
       
@@ -170,9 +173,12 @@ const LineraContextProvider = ({ children }) => {
       const existingScore = room.players && room.players[roomState.player2] ? room.players[roomState.player2].score : 0;
       const score = roomState.gameResult ? roomState.gameResult.player2Wins : existingScore;
       
+      // Check if player has made a choice (based on blockchain state)
+      const hasChosen = !!roomState.player2Choice;
+      
       convertedRoom.players[roomState.player2] = {
         option: roomState.player2Choice ? roomState.player2Choice.toLowerCase() : "",
-        optionLock: bothPlayersChosen, // Only lock when both players have chosen
+        optionLock: hasChosen, // Lock when player has made a choice
         score: score
       };
       
